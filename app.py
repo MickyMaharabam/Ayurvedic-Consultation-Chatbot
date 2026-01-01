@@ -154,7 +154,7 @@ Please describe your symptoms to begin.
             # ---------------- VISUALIZATION ----------------
             col1, col2 = st.columns([2, 3])
             with col1:
-                st.markdown("### 🧘 Predicted Dosha(s)")
+                st.markdown("### 🧘 Predicted Dosha")
                 for dosha in multi_doshas:
                     st.markdown(f"**{DOSHA_EMOJI[dosha]} {dosha}**")
                     with st.expander(f"About {dosha}"):
