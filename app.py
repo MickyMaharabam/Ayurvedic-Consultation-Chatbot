@@ -2,15 +2,16 @@ import streamlit as st
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from openai import OpenAI
+import pandas as pd
 
 # ---------------- CONFIG ----------------
-st.set_page_config(page_title="AyuTalk", page_icon="🌿")
+st.set_page_config(page_title="AyuTalk", page_icon="🌿", layout="wide")
 st.title("🌿 TriDosha Talk")
-st.caption("AI based Ayurvedic Consultation Chatbot")
+st.caption("AI-based Ayurvedic Consultation Chatbot")
 
 # ---------------- MODEL PATH ----------------
 MODEL_PATH = "mickymaharabam/AyuTalk_model"
-CONFIDENCE_THRESHOLD = 0.5  # Lowered threshold to allow multi-dosha prediction
+CONFIDENCE_THRESHOLD = 0.5  # Multi-dosha threshold
 
 # ---------------- OPENAI CLIENT ----------------
 client = OpenAI()  # Reads API key from environment
@@ -43,6 +44,8 @@ DOSHA_REMEDIES = {
     "Pitta": "Eat cooling foods; avoid spicy items; stay hydrated; practice calming activities.",
     "Kapha": "Eat light meals; exercise regularly; avoid heavy and oily foods."
 }
+
+DOSHA_EMOJI = {"Vata": "💨", "Pitta": "🔥", "Kapha": "💧"}
 
 # ---------------- GPT FALLBACK ----------------
 def ask_gpt(symptoms):
@@ -105,7 +108,7 @@ if user_input:
     ]
 
     symptom_keywords = [
-        "pain", "fever", "dryness", "anxiety", "constipation",
+        "pain", "fever", "dryness", "anxiety", "constipation","high fever",
         "acidity", "burning", "heaviness", "lethargy", "insomnia",
         "cough", "cold", "headache", "fatigue", "nausea", "focus"
     ]
@@ -148,12 +151,27 @@ Please describe your symptoms to begin.
         multi_doshas = [DOSHA_MAP[i] for i, p in enumerate(probs) if p >= CONFIDENCE_THRESHOLD]
 
         if multi_doshas:
-            bot_reply = ""
-            for dosha in multi_doshas:
-                bot_reply += f"### 🧘 Predicted Dosha: **{dosha}**\n"
-                bot_reply += f"🩺 About {dosha}: {DOSHA_INFO[dosha]}\n"
-                bot_reply += f"🌿 Remedies: {DOSHA_REMEDIES[dosha]}\n\n"
-            bot_reply += "*This guidance is general and not a medical diagnosis.*"
+            # ---------------- VISUALIZATION ----------------
+            col1, col2 = st.columns([2, 3])
+            with col1:
+                st.markdown("### 🧘 Predicted Dosha(s)")
+                for dosha in multi_doshas:
+                    st.markdown(f"**{DOSHA_EMOJI[dosha]} {dosha}**")
+                    with st.expander(f"About {dosha}"):
+                        st.write(DOSHA_INFO[dosha])
+                    with st.expander(f"🌿 Remedies for {dosha}"):
+                        st.write(DOSHA_REMEDIES[dosha])
+            with col2:
+                st.markdown("### 📊 Dosha Probability Chart")
+                prob_data = pd.DataFrame({
+                    "Dosha": list(DOSHA_MAP.values()),
+                    "Probability": probs.cpu().numpy()
+                })
+                prob_data = prob_data.set_index("Dosha")
+                st.bar_chart(prob_data)
+
+            bot_reply = "\n".join([f"{DOSHA_EMOJI[d]} {d}" for d in multi_doshas])
+            bot_reply += "\n\n*This guidance is general and not a medical diagnosis.*"
         else:
             # Low confidence → GPT reasoning
             bot_reply = ask_gpt(user_input)
