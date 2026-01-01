@@ -6,7 +6,7 @@ from openai import OpenAI
 # ---------------- CONFIG ----------------
 st.set_page_config(page_title="AyuTalk", page_icon="🌿")
 st.title("🌿 TriDosha Talk")
-st.caption("AI based Ayurvedic consultation")
+st.caption("AI based Ayurvedic Consultation Chatbot")
 
 # ---------------- MODEL PATH ----------------
 MODEL_PATH = "mickymaharabam/AyuTalk_model"
