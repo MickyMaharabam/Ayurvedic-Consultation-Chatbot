@@ -9,7 +9,7 @@ st.title("🌿 TriDosha Talk")
 st.caption("AI based Ayurvedic consultation")
 
 # ---------------- MODEL PATH ----------------
-MODEL_PATH = "D:/AyukTalk/ayutalk_model/model"
+MODEL_PATH = "mickymaharabam/AyuTalk_model"
 CONFIDENCE_THRESHOLD = 0.8
 
 # ---------------- OPENAI CLIENT (SDK v2) ----------------
