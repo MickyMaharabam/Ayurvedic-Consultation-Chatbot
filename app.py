@@ -10,9 +10,9 @@ st.caption("AI based Ayurvedic Consultation Chatbot")
 
 # ---------------- MODEL PATH ----------------
 MODEL_PATH = "mickymaharabam/AyuTalk_model"
-CONFIDENCE_THRESHOLD = 0.8
+CONFIDENCE_THRESHOLD = 0.5  # Lowered threshold to allow multi-dosha prediction
 
-# ---------------- OPENAI CLIENT (SDK v2) ----------------
+# ---------------- OPENAI CLIENT ----------------
 client = OpenAI()  # Reads API key from environment
 
 # ---------------- DEVICE ----------------
@@ -38,6 +38,12 @@ DOSHA_INFO = {
     "Kapha": "Kapha governs structure. Imbalance may cause heaviness, lethargy, weight gain."
 }
 
+DOSHA_REMEDIES = {
+    "Vata": "Eat warm, cooked foods; maintain routine; practice yoga and meditation.",
+    "Pitta": "Eat cooling foods; avoid spicy items; stay hydrated; practice calming activities.",
+    "Kapha": "Eat light meals; exercise regularly; avoid heavy and oily foods."
+}
+
 # ---------------- GPT FALLBACK ----------------
 def ask_gpt(symptoms):
     try:
@@ -54,16 +60,12 @@ Tasks:
 4. Avoid medicine names.
 5. Do NOT provide medical diagnosis.
 """
-
         response = client.responses.create(
             model="gpt-4o-mini",
             input=prompt
         )
-
         return response.output_text
-
     except Exception:
-        # Offline safe fallback
         return """
 🧠 **Possible Dosha Imbalance: Vata**
 
@@ -110,7 +112,7 @@ if user_input:
 
     # ---------------- DECISION LOGIC ----------------
 
-    #  GREETING
+    # GREETING
     if any(greet in user_text for greet in greeting_keywords):
         bot_reply = """
 🙏 **Namaste! Welcome to TriDosha Talk 🌿**
@@ -123,48 +125,35 @@ I can help you with:
 Please describe your symptoms to begin.
 """
 
-    #  UNKNOWN / GENERAL TEXT → GPT
+    # UNKNOWN / GENERAL TEXT → GPT
     elif not any(word in user_text for word in symptom_keywords):
         bot_reply = ask_gpt(user_input)
 
-    #  SYMPTOM TEXT → BERT
+    # SYMPTOM TEXT → BERT
     else:
         inputs = tokenizer(
             user_input,
             return_tensors="pt",
             truncation=True,
-            padding=True
+            padding=True,
+            max_length=128
         )
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
         with torch.no_grad():
             outputs = model(**inputs)
-            probs = torch.softmax(outputs.logits, dim=1)
-            confidence, pred = torch.max(probs, dim=1)
+            probs = torch.softmax(outputs.logits, dim=1).squeeze()  # shape: [3]
 
-        confidence = confidence.item()
-        pred = pred.item()
+        # Pick all doshas above threshold
+        multi_doshas = [DOSHA_MAP[i] for i, p in enumerate(probs) if p >= CONFIDENCE_THRESHOLD]
 
-        if confidence >= CONFIDENCE_THRESHOLD:
-            dosha = DOSHA_MAP[pred]
-
-            remedies = {
-                "Vata": "Eat warm, cooked foods; maintain routine; practice yoga and meditation.",
-                "Pitta": "Eat cooling foods; avoid spicy items; stay hydrated; practice calming activities.",
-                "Kapha": "Eat light meals; exercise regularly; avoid heavy and oily foods."
-            }
-
-            bot_reply = f"""
-### 🧘 Predicted Dosha: **{dosha}**
-
-🩺 **About {dosha}:**  
-{DOSHA_INFO[dosha]}
-
-🌿 **Remedies:**  
-{remedies[dosha]}
-
-*This guidance is general and not a medical diagnosis.*
-"""
+        if multi_doshas:
+            bot_reply = ""
+            for dosha in multi_doshas:
+                bot_reply += f"### 🧘 Predicted Dosha: **{dosha}**\n"
+                bot_reply += f"🩺 About {dosha}: {DOSHA_INFO[dosha]}\n"
+                bot_reply += f"🌿 Remedies: {DOSHA_REMEDIES[dosha]}\n\n"
+            bot_reply += "*This guidance is general and not a medical diagnosis.*"
         else:
             # Low confidence → GPT reasoning
             bot_reply = ask_gpt(user_input)
@@ -173,4 +162,3 @@ Please describe your symptoms to begin.
     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
     with st.chat_message("assistant"):
         st.markdown(bot_reply)
-
