@@ -53,7 +53,7 @@ def ask_gpt(symptoms, ml_probs=None):
     GPT is FORCED to evaluate ALL doshas independently
     """
     context = ""
-    if ml_probs:
+    if ml_probs is not None:
         context = f"""
 ML model probabilities:
 Vata: {ml_probs[0]:.2f}
