@@ -1,6 +1,10 @@
 streamlit
 torch
 transformers
+sentencepiece
+accelerate
 huggingface_hub
+pandas
 openai
+
 
